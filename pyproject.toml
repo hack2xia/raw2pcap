@@ -1,6 +1,6 @@
 [project]
 name = "raw2pcap"
-version = "0.1.0"
+version = "0.1.1"
 description = "Create pcap files from raw HTTP/1.x request/response text, purely in software"
 readme = "README.md"
 requires-python = ">=3.10"
