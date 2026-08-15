@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
 # Copy source and install the project itself.
-COPY http2pcap ./http2pcap
+COPY raw2pcap ./raw2pcap
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
@@ -20,11 +20,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 COPY --from=builder /app/.venv ./.venv
-COPY http2pcap ./http2pcap
+COPY raw2pcap ./raw2pcap
 
 ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 5000
 
 # The app only synthesizes packets in memory - no NET_ADMIN or root caps needed.
-CMD ["http2pcap", "serve", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["raw2pcap", "serve", "--host", "0.0.0.0", "--port", "5000"]

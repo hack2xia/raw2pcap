@@ -1,4 +1,4 @@
-from http2pcap.cli import DEFAULT_PORT, build_parser, main
+from raw2pcap.cli import DEFAULT_PORT, build_parser, main
 
 
 def test_serve_default_port():
@@ -26,5 +26,5 @@ def main_with(argv):
     import sys
     from unittest import mock
 
-    with mock.patch.object(sys, "argv", ["http2pcap", *argv]):
+    with mock.patch.object(sys, "argv", ["raw2pcap", *argv]):
         return main()

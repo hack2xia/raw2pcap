@@ -1,6 +1,6 @@
 import pytest
 
-from http2pcap.parser import ParseError, parse_request, parse_response
+from raw2pcap.parser import ParseError, parse_request, parse_response
 
 REQUEST = (
     "POST /login?a=1 HTTP/1.1\r\n"

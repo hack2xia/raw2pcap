@@ -9,7 +9,7 @@ can show them.
 import re
 from dataclasses import dataclass
 
-from http2pcap.parser import HEADER_SEP, _split_head_body
+from raw2pcap.parser import HEADER_SEP, _split_head_body
 
 _TOKEN_RE = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 _BLANK_WITH_WS_RE = re.compile(r"(?:\r\n|\n)[ \t]+(?:\r\n|\n)")

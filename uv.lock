@@ -102,7 +102,7 @@ wheels = [
 ]
 
 [[package]]
-name = "http2pcap"
+name = "raw2pcap"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

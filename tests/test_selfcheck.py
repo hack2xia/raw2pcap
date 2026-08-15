@@ -5,9 +5,9 @@ from scapy.layers.inet import IP, TCP
 from scapy.packet import Raw
 from scapy.utils import PcapReader, PcapWriter
 
-from http2pcap.generate import generate_pcap
-from http2pcap.selfcheck import SelfCheckError, verify_pcap
-from http2pcap.synth import DEFAULT_CLIENT_IP, DEFAULT_SERVER_IP
+from raw2pcap.generate import generate_pcap
+from raw2pcap.selfcheck import SelfCheckError, verify_pcap
+from raw2pcap.synth import DEFAULT_CLIENT_IP, DEFAULT_SERVER_IP
 
 REQUEST = "GET /hello HTTP/1.1\r\nHost: example.com\r\n\r\n"
 RESPONSE = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nworld"

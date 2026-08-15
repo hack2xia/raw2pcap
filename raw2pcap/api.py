@@ -1,4 +1,4 @@
-"""FastAPI web wrapper around http2pcap.generate."""
+"""FastAPI web wrapper around raw2pcap.generate."""
 
 import json
 import re
@@ -7,13 +7,13 @@ from pathlib import Path
 from fastapi import FastAPI, Form, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from http2pcap.config import MAX_BODY_BYTES
-from http2pcap.generate import generate_pcap
-from http2pcap.parser import ParseError
-from http2pcap.selfcheck import SelfCheckError
-from http2pcap.validate import validate_request, validate_response
+from raw2pcap.config import MAX_BODY_BYTES
+from raw2pcap.generate import generate_pcap
+from raw2pcap.parser import ParseError
+from raw2pcap.selfcheck import SelfCheckError
+from raw2pcap.validate import validate_request, validate_response
 
-app = FastAPI(title="http2pcap")
+app = FastAPI(title="raw2pcap")
 
 _STATIC = Path(__file__).parent / "static"
 _INDEX_HTML = (_STATIC / "index.html").read_text(encoding="utf-8")
@@ -29,7 +29,7 @@ def _sanitize_filename(raw: str) -> str:
     includes both quote and backslash, so the result cannot break out of the
     quoted filename.
     """
-    name = _ILLEGAL_FILENAME_CHARS.sub("", raw.strip()) or "http2pcap-result"
+    name = _ILLEGAL_FILENAME_CHARS.sub("", raw.strip()) or "raw2pcap-result"
     return name if name.lower().endswith(".pcap") else name + ".pcap"
 
 
@@ -97,6 +97,6 @@ def create_pcap(
         media_type="application/vnd.tcpdump.pcap",
         headers={
             "Content-Disposition": f'attachment; filename="{_sanitize_filename(filename)}"',
-            "X-Http2pcap-Warnings": json.dumps(warnings),
+            "X-Raw2pcap-Warnings": json.dumps(warnings),
         },
     )

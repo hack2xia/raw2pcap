@@ -1,4 +1,4 @@
-from http2pcap.validate import validate_request, validate_response
+from raw2pcap.validate import validate_request, validate_response
 
 
 def messages(issues, level=None):

@@ -1,22 +1,22 @@
-"""Command-line interface for http2pcap.
+"""Command-line interface for raw2pcap.
 
 Usage:
-    http2pcap generate [request.req] [response.res] -o out.pcap
-    http2pcap serve [--host HOST] [--port PORT]
+    raw2pcap generate [request.req] [response.res] -o out.pcap
+    raw2pcap serve [--host HOST] [--port PORT]
 """
 
 import argparse
 import sys
 
-from http2pcap.generate import generate_pcap
-from http2pcap.parser import ParseError
+from raw2pcap.generate import generate_pcap
+from raw2pcap.parser import ParseError
 
 DEFAULT_PORT = 5000
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="http2pcap",
+        prog="raw2pcap",
         description="Create pcap files from raw HTTP request/response text.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen = subparsers.add_parser("generate", help="create a pcap from raw HTTP text files")
     gen.add_argument("request", nargs="?", help="file containing a raw HTTP request")
     gen.add_argument("response", nargs="?", help="file containing a raw HTTP response")
-    gen.add_argument("-o", "--output", default="http2pcap-result.pcap")
+    gen.add_argument("-o", "--output", default="raw2pcap-result.pcap")
 
     serve = subparsers.add_parser("serve", help="run the web UI")
     serve.add_argument("--host", default="127.0.0.1")
@@ -57,10 +57,10 @@ def _cmd_generate(args: argparse.Namespace) -> int:
 def _cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
-    from http2pcap.config import LIMIT_CONCURRENCY
+    from raw2pcap.config import LIMIT_CONCURRENCY
 
     uvicorn.run(
-        "http2pcap.api:app",
+        "raw2pcap.api:app",
         host=args.host,
         port=args.port,
         # Generating a pcap is CPU/memory heavy; keep concurrency low. Bulk
