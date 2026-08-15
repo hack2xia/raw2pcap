@@ -1,0 +1,102 @@
+"""FastAPI web wrapper around http2pcap.generate."""
+
+import json
+import re
+from pathlib import Path
+
+from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi.responses import HTMLResponse, JSONResponse
+
+from http2pcap.config import MAX_BODY_BYTES
+from http2pcap.generate import generate_pcap
+from http2pcap.parser import ParseError
+from http2pcap.selfcheck import SelfCheckError
+from http2pcap.validate import validate_request, validate_response
+
+app = FastAPI(title="http2pcap")
+
+_STATIC = Path(__file__).parent / "static"
+_INDEX_HTML = (_STATIC / "index.html").read_text(encoding="utf-8")
+
+_ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+
+
+def _sanitize_filename(raw: str) -> str:
+    """Turn the user-supplied name into a safe download filename.
+
+    Sanitizing here (not in the browser) keeps all logic tested by pytest and
+    guarantees a safe Content-Disposition header value: the stripped set
+    includes both quote and backslash, so the result cannot break out of the
+    quoted filename.
+    """
+    name = _ILLEGAL_FILENAME_CHARS.sub("", raw.strip()) or "http2pcap-result"
+    return name if name.lower().endswith(".pcap") else name + ".pcap"
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    """Reject oversized bodies early based on Content-Length.
+
+    Chunked requests have no Content-Length; those are caught by the
+    endpoint-level check on the parsed form fields.
+    """
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > MAX_BODY_BYTES:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": [f"request body too large (max {MAX_BODY_BYTES} bytes)"]},
+        )
+    return await call_next(request)
+
+
+@app.get("/", response_class=HTMLResponse)
+def index() -> str:
+    return _INDEX_HTML
+
+
+@app.get("/static/app.js")
+def app_js() -> Response:
+    return Response(
+        (_STATIC / "app.js").read_bytes(),
+        media_type="text/javascript",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.post("/api/pcap")
+def create_pcap(
+    inputRequest: str = Form(default=""),
+    inputResponse: str = Form(default=""),
+    filename: str = Form(default=""),
+) -> Response:
+    if len(inputRequest) + len(inputResponse) > MAX_BODY_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=[f"request body too large (max {MAX_BODY_BYTES} bytes)"],
+        )
+    if not inputRequest.strip():
+        raise HTTPException(status_code=400, detail=["request is required"])
+    issues = validate_request(inputRequest)
+    if inputResponse.strip():
+        issues += validate_response(inputResponse)
+    errors = [i.message for i in issues if i.level == "error"]
+    if errors:
+        raise HTTPException(status_code=400, detail=errors)
+    warnings = [i.message for i in issues if i.level == "warning"]
+
+    try:
+        pcap = generate_pcap(raw_request=inputRequest, raw_response=inputResponse)
+    except (ValueError, ParseError) as exc:
+        raise HTTPException(status_code=400, detail=[str(exc)]) from exc
+    except SelfCheckError as exc:
+        # The generated pcap failed its own round-trip verification - this is
+        # a bug in the synthesizer, not in the user's input.
+        raise HTTPException(status_code=500, detail=[f"pcap self-check failed: {exc}"]) from exc
+    return Response(
+        content=pcap,
+        media_type="application/vnd.tcpdump.pcap",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_sanitize_filename(filename)}"',
+            "X-Http2pcap-Warnings": json.dumps(warnings),
+        },
+    )
