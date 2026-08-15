@@ -1,5 +1,7 @@
 # raw2pcap
 
+**English** | [简体中文](README.zh-CN.md)
+
 **HTTP/1.x only.** raw2pcap creates pcap files from raw HTTP/1.x
 request/response text. Paste (or point it at) a raw HTTP request and
 optionally a response, and it synthesizes a complete TCP session in
