@@ -80,6 +80,13 @@ docker run -d -p 5000:5000 --memory 512m --cpus 1 --pids-limit 100 \
   --restart unless-stopped raw2pcap:latest
 ```
 
+如果宿主机 5000 端口已被占用——macOS 上"隔空播放接收器"经常占着它，访问会返回 `AirTunes` 的 403——换一个宿主端口即可：
+
+```bash
+docker run -d -p 5001:5000 --memory 512m --cpus 1 --pids-limit 100 \
+  --restart unless-stopped raw2pcap:latest
+```
+
 ## 许可证
 
 MIT——见 [LICENSE](LICENSE)。

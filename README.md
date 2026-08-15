@@ -120,6 +120,15 @@ docker run -d -p 5000:5000 --memory 512m --cpus 1 --pids-limit 100 \
   --restart unless-stopped raw2pcap:latest
 ```
 
+If port 5000 is already taken on the host — on macOS the AirPlay Receiver
+frequently occupies it, returning a 403 from `AirTunes` — map a different
+host port instead:
+
+```bash
+docker run -d -p 5001:5000 --memory 512m --cpus 1 --pids-limit 100 \
+  --restart unless-stopped raw2pcap:latest
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
