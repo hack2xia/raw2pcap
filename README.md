@@ -26,6 +26,8 @@ Open the page, paste the request (required) and response (optional, a canned
 set the Client IP / Server IP used in the synthesized session (defaults
 `10.10.10.1` / `10.10.10.2`), pick a filename, and download the pcap.
 
+![raw2pcap web UI](r2p.png)
+
 The same endpoint is available programmatically:
 
 ```bash
