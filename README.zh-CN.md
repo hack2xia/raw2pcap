@@ -6,25 +6,40 @@
 
 ## 安装
 
-需要 Python 3.10+。
+需要 Python 3.10+（uv 会在缺少时自动安装托管的 Python）。
 
-从源码目录开始，让 uv 管理环境：
+**方式 A —— uv（推荐新手）。** 先安装 uv：
+
+```bash
+# macOS（Homebrew）
+brew install uv
+# 或任意 macOS/Linux 终端
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows（PowerShell）
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+然后在源码目录中：
 
 ```bash
 uv sync
 uv run raw2pcap serve          # 无需手动激活虚拟环境
 ```
 
-或者安装一次，之后随处使用 `raw2pcap` 命令：
+**方式 B —— pip + 虚拟环境。** 新版 Python 会拒绝向系统 Python 安装包（PEP 668），因此请始终使用虚拟环境：
 
 ```bash
-pip install .                  # 在源码目录；或：uv tool install .
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install .
 raw2pcap serve
 ```
 
-如果提示 `raw2pcap: command not found`，说明包尚未安装（或虚拟环境未激活）：先运行 `uv sync` 并使用 `uv run raw2pcap ...`，或执行 `source .venv/bin/activate` 激活虚拟环境。
+如果提示 `raw2pcap: command not found`，说明包尚未安装或虚拟环境未激活——使用方式 A 的 `uv run raw2pcap ...`，或按方式 B 激活虚拟环境。
 
 ## 使用方法
+
+以下命令假设包已安装（虚拟环境已激活）。使用 uv 管理环境时，请在命令前加 `uv run`——例如 `uv run raw2pcap serve`。
 
 ### Web UI
 
@@ -47,6 +62,8 @@ curl -o out.pcap -F 'inputRequest=@request.txt' -F 'inputResponse=@response.txt'
   -F 'clientIp=10.0.0.2' -F 'serverIp=192.168.1.10' \
   http://localhost:5000/api/pcap
 ```
+
+`inputRequest` / `inputResponse` 既可以是普通文本字段，也可以是文件（如上）；`clientIp` / `serverIp` 可选，默认 `10.10.10.1` / `10.10.10.2`。
 
 ### CLI
 

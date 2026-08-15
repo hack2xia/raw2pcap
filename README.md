@@ -11,27 +11,45 @@ reassembly, Follow Stream, and checksum validation.
 
 ## Installation
 
-Requires Python 3.10+.
+Requires Python 3.10+ (uv installs its own managed Python if none is found).
 
-From a source checkout, let uv manage the environment:
+**Option A — uv (recommended for beginners).** Install uv once:
+
+```bash
+# macOS with Homebrew
+brew install uv
+# or any macOS/Linux shell
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows (PowerShell)
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Then, from a source checkout:
 
 ```bash
 uv sync
 uv run raw2pcap serve          # no manual venv activation needed
 ```
 
-Or install once and use the `raw2pcap` command anywhere:
+**Option B — pip in a virtual environment.** Modern Pythons refuse to
+install packages into the system Python (PEP 668), so always use a venv:
 
 ```bash
-pip install .                  # from a checkout; or: uv tool install .
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install .
 raw2pcap serve
 ```
 
-If you get `raw2pcap: command not found`, the package is not installed (or
-its venv is not active): run `uv sync` first and use `uv run raw2pcap ...`,
-or activate the venv with `source .venv/bin/activate`.
+If you get `raw2pcap: command not found`, the package is not installed or
+its venv is not active — use the `uv run raw2pcap ...` form (Option A), or
+activate the venv (Option B).
 
 ## Usage
+
+All commands below assume the package is installed (venv active). With a
+uv-managed checkout, prefix them with `uv run` — e.g.
+`uv run raw2pcap serve`.
 
 ### Web UI
 
@@ -60,6 +78,10 @@ curl -o out.pcap -F 'inputRequest=@request.txt' -F 'inputResponse=@response.txt'
   -F 'clientIp=10.0.0.2' -F 'serverIp=192.168.1.10' \
   http://localhost:5000/api/pcap
 ```
+
+`inputRequest` / `inputResponse` accept either plain text values or files
+(as above); `clientIp` / `serverIp` are optional and default to
+`10.10.10.1` / `10.10.10.2`.
 
 ### CLI
 

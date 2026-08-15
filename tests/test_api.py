@@ -198,3 +198,32 @@ def test_invalid_client_ip_rejected():
     )
     assert resp.status_code == 400
     assert any("IPv4" in m for m in resp.json()["detail"])
+
+
+def test_create_pcap_with_file_uploads():
+    resp = client.post(
+        "/api/pcap",
+        files={
+            "inputRequest": ("request.txt", REQUEST.encode("utf-8")),
+            "inputResponse": ("response.txt", RESPONSE.encode("utf-8")),
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.content[:4] == b"\xd4\xc3\xb2\xa1"
+
+
+def test_create_pcap_file_upload_request_only():
+    resp = client.post(
+        "/api/pcap",
+        files={"inputRequest": ("request.txt", REQUEST.encode("utf-8"))},
+    )
+    assert resp.status_code == 200
+
+
+def test_create_pcap_binary_upload_rejected():
+    resp = client.post(
+        "/api/pcap",
+        files={"inputRequest": ("request.txt", b"\xff\xfe\x00 binary")},
+    )
+    assert resp.status_code == 400
+    assert any("UTF-8" in m for m in resp.json()["detail"])

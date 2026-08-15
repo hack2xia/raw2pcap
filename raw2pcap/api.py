@@ -3,8 +3,9 @@
 import json
 import re
 from pathlib import Path
+from typing import Annotated
 
-from fastapi import FastAPI, Form, HTTPException, Request, Response
+from fastapi import FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from raw2pcap.config import MAX_BODY_BYTES
@@ -55,6 +56,18 @@ def _resolve_ip(value: str, default: str, label: str) -> str:
         raise HTTPException(status_code=400, detail=[str(exc)]) from exc
 
 
+def _form_text(field: str | UploadFile | None) -> str:
+    """Normalize a multipart field that may arrive as text or as a file upload."""
+    if field is None:
+        return ""
+    if hasattr(field, "filename"):  # UploadFile (starlette)
+        try:
+            return field.file.read().decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=400, detail=["input must be UTF-8 text"]) from None
+    return field
+
+
 @app.middleware("http")
 async def limit_body_size(request: Request, call_next):
     """Reject oversized bodies early based on Content-Length.
@@ -87,22 +100,24 @@ def app_js() -> Response:
 
 @app.post("/api/pcap")
 def create_pcap(
-    inputRequest: str = Form(default=""),
-    inputResponse: str = Form(default=""),
-    filename: str = Form(default=""),
-    clientIp: str = Form(default=""),
-    serverIp: str = Form(default=""),
+    inputRequest: Annotated[str | UploadFile | None, Form()] = None,
+    inputResponse: Annotated[str | UploadFile | None, Form()] = None,
+    filename: Annotated[str, Form()] = "",
+    clientIp: Annotated[str, Form()] = "",
+    serverIp: Annotated[str, Form()] = "",
 ) -> Response:
-    if _utf8_bytes(inputRequest, inputResponse) > MAX_BODY_BYTES:
+    input_request = _form_text(inputRequest)
+    input_response = _form_text(inputResponse)
+    if _utf8_bytes(input_request, input_response) > MAX_BODY_BYTES:
         raise HTTPException(
             status_code=413,
             detail=[f"request body too large (max {MAX_BODY_BYTES} bytes)"],
         )
-    if not inputRequest.strip():
+    if not input_request.strip():
         raise HTTPException(status_code=400, detail=["request is required"])
-    issues = validate_request(inputRequest)
-    if inputResponse.strip():
-        issues += validate_response(inputResponse)
+    issues = validate_request(input_request)
+    if input_response.strip():
+        issues += validate_response(input_response)
     errors = [i.message for i in issues if i.level == "error"]
     if errors:
         raise HTTPException(status_code=400, detail=errors)
@@ -110,8 +125,8 @@ def create_pcap(
 
     try:
         pcap = generate_pcap(
-            raw_request=inputRequest,
-            raw_response=inputResponse,
+            raw_request=input_request,
+            raw_response=input_response,
             client_ip=_resolve_ip(clientIp, DEFAULT_CLIENT_IP, "client IP"),
             server_ip=_resolve_ip(serverIp, DEFAULT_SERVER_IP, "server IP"),
         )
