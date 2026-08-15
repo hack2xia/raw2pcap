@@ -11,7 +11,13 @@ from raw2pcap.config import MAX_BODY_BYTES
 from raw2pcap.generate import generate_pcap
 from raw2pcap.parser import ParseError
 from raw2pcap.selfcheck import SelfCheckError
-from raw2pcap.validate import validate_request, validate_response
+from raw2pcap.synth import DEFAULT_CLIENT_IP, DEFAULT_SERVER_IP
+from raw2pcap.validate import (
+    IpValidationError,
+    normalize_ipv4,
+    validate_request,
+    validate_response,
+)
 
 app = FastAPI(title="raw2pcap")
 
@@ -37,6 +43,16 @@ def _sanitize_filename(raw: str) -> str:
 def _utf8_bytes(*fields: str) -> int:
     """Sum the UTF-8 byte length of form fields (matches middleware accounting)."""
     return sum(len(f.encode("utf-8")) for f in fields)
+
+
+def _resolve_ip(value: str, default: str, label: str) -> str:
+    """Return *value* as a validated IPv4 address, or *default* when blank."""
+    if not value.strip():
+        return default
+    try:
+        return normalize_ipv4(value, label)
+    except IpValidationError as exc:
+        raise HTTPException(status_code=400, detail=[str(exc)]) from exc
 
 
 @app.middleware("http")
@@ -74,6 +90,8 @@ def create_pcap(
     inputRequest: str = Form(default=""),
     inputResponse: str = Form(default=""),
     filename: str = Form(default=""),
+    clientIp: str = Form(default=""),
+    serverIp: str = Form(default=""),
 ) -> Response:
     if _utf8_bytes(inputRequest, inputResponse) > MAX_BODY_BYTES:
         raise HTTPException(
@@ -91,7 +109,12 @@ def create_pcap(
     warnings = [i.message for i in issues if i.level == "warning"]
 
     try:
-        pcap = generate_pcap(raw_request=inputRequest, raw_response=inputResponse)
+        pcap = generate_pcap(
+            raw_request=inputRequest,
+            raw_response=inputResponse,
+            client_ip=_resolve_ip(clientIp, DEFAULT_CLIENT_IP, "client IP"),
+            server_ip=_resolve_ip(serverIp, DEFAULT_SERVER_IP, "server IP"),
+        )
     except (ValueError, ParseError) as exc:
         raise HTTPException(status_code=400, detail=[str(exc)]) from exc
     except SelfCheckError as exc:

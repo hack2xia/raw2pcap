@@ -6,6 +6,7 @@ generation (HTTP 400), warnings are returned alongside the pcap so the UI
 can show them.
 """
 
+import ipaddress
 import re
 from dataclasses import dataclass
 
@@ -19,6 +20,25 @@ _BLANK_WITH_WS_RE = re.compile(r"(?:\r\n|\n)[ \t]+(?:\r\n|\n)")
 class Issue:
     level: str  # "error" or "warning"
     message: str
+
+
+class IpValidationError(ValueError):
+    """Raised when a user-supplied IP address cannot be used in a pcap."""
+
+
+def normalize_ipv4(value: str, label: str) -> str:
+    """Validate *value* as a usable IPv4 address and return it in canonical form.
+
+    The synthesizer only builds IPv4 sessions, so anything else is rejected
+    up front with a clear message instead of an opaque Scapy error.
+    """
+    try:
+        addr = ipaddress.IPv4Address(value.strip())
+    except ipaddress.AddressValueError:
+        raise IpValidationError(f"{label} is not a valid IPv4 address: {value!r}") from None
+    if addr.is_unspecified or addr.is_multicast or addr.is_reserved:
+        raise IpValidationError(f"{label} must be a usable unicast IPv4 address, got {addr}")
+    return str(addr)
 
 
 def _check_head(text: str, kind: str) -> tuple[list[Issue], list[str], bytes]:

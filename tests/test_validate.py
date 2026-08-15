@@ -1,4 +1,11 @@
-from raw2pcap.validate import validate_request, validate_response
+import pytest
+
+from raw2pcap.validate import (
+    IpValidationError,
+    normalize_ipv4,
+    validate_request,
+    validate_response,
+)
 
 
 def messages(issues, level=None):
@@ -138,3 +145,23 @@ def test_duplicate_content_length_request_is_error():
     )
     errors = messages(validate_request(text), "error")
     assert any("multiple Content-Length" in m for m in errors)
+
+
+def test_normalize_ipv4_valid():
+    assert normalize_ipv4("127.0.0.2", "client IP") == "127.0.0.2"
+    assert normalize_ipv4(" 10.0.0.2 ", "server IP") == "10.0.0.2"
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["not-an-ip", "10.0.0.256", "::1", "010.0.0.1", "10.0.0.1:8080"],
+)
+def test_normalize_ipv4_rejects_invalid(value):
+    with pytest.raises(IpValidationError):
+        normalize_ipv4(value, "client IP")
+
+
+@pytest.mark.parametrize("value", ["0.0.0.0", "255.255.255.255", "224.0.0.1"])
+def test_normalize_ipv4_rejects_unusable(value):
+    with pytest.raises(IpValidationError):
+        normalize_ipv4(value, "server IP")

@@ -10,8 +10,22 @@ import sys
 
 from raw2pcap.generate import generate_pcap
 from raw2pcap.parser import ParseError
+from raw2pcap.synth import DEFAULT_CLIENT_IP, DEFAULT_SERVER_IP
+from raw2pcap.validate import IpValidationError, normalize_ipv4
 
 DEFAULT_PORT = 5000
+
+
+def _ipv4_type(label: str):
+    """Build an argparse type that validates a value as a usable IPv4 address."""
+
+    def convert(value: str) -> str:
+        try:
+            return normalize_ipv4(value, label)
+        except IpValidationError as exc:
+            raise argparse.ArgumentTypeError(str(exc)) from None
+
+    return convert
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,6 +39,18 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument("request", nargs="?", help="file containing a raw HTTP request")
     gen.add_argument("response", nargs="?", help="file containing a raw HTTP response")
     gen.add_argument("-o", "--output", default="raw2pcap-result.pcap")
+    gen.add_argument(
+        "--client-ip",
+        type=_ipv4_type("client IP"),
+        default=DEFAULT_CLIENT_IP,
+        help=f"client (source) IPv4 address [default {DEFAULT_CLIENT_IP}]",
+    )
+    gen.add_argument(
+        "--server-ip",
+        type=_ipv4_type("server IP"),
+        default=DEFAULT_SERVER_IP,
+        help=f"server (destination) IPv4 address [default {DEFAULT_SERVER_IP}]",
+    )
 
     serve = subparsers.add_parser("serve", help="run the web UI")
     serve.add_argument("--host", default="127.0.0.1")
@@ -43,7 +69,12 @@ def _cmd_generate(args: argparse.Namespace) -> int:
             raw_response = f.read()
 
     try:
-        pcap = generate_pcap(raw_request=raw_request, raw_response=raw_response)
+        pcap = generate_pcap(
+            raw_request=raw_request,
+            raw_response=raw_response,
+            client_ip=args.client_ip,
+            server_ip=args.server_ip,
+        )
     except (ValueError, ParseError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

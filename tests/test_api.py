@@ -1,4 +1,8 @@
+from io import BytesIO
+
 from fastapi.testclient import TestClient
+from scapy.layers.inet import IP
+from scapy.utils import rdpcap
 
 from raw2pcap.api import app
 
@@ -153,3 +157,44 @@ def test_oversized_multibyte_body_rejected():
         },
     )
     assert resp.status_code == 413
+
+
+def test_custom_ips_used_in_pcap():
+    resp = client.post(
+        "/api/pcap",
+        data={
+            "inputRequest": REQUEST,
+            "inputResponse": "",
+            "clientIp": "127.0.0.2",
+            "serverIp": "10.0.0.2",
+        },
+    )
+    assert resp.status_code == 200
+    pkts = rdpcap(BytesIO(resp.content))
+    assert pkts[0][IP].src == "127.0.0.2"
+    assert pkts[0][IP].dst == "10.0.0.2"
+
+
+def test_empty_ip_fields_use_defaults():
+    resp = client.post(
+        "/api/pcap",
+        data={
+            "inputRequest": REQUEST,
+            "inputResponse": "",
+            "clientIp": "",
+            "serverIp": "",
+        },
+    )
+    assert resp.status_code == 200
+    pkts = rdpcap(BytesIO(resp.content))
+    assert pkts[0][IP].src == "10.10.10.1"
+    assert pkts[0][IP].dst == "10.10.10.2"
+
+
+def test_invalid_client_ip_rejected():
+    resp = client.post(
+        "/api/pcap",
+        data={"inputRequest": REQUEST, "inputResponse": "", "clientIp": "999.1.1.1"},
+    )
+    assert resp.status_code == 400
+    assert any("IPv4" in m for m in resp.json()["detail"])

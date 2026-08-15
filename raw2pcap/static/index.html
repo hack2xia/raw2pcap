@@ -163,6 +163,34 @@
     font-size: 14px;
     font-family: "SFMono-Regular", Consolas, monospace;
   }
+  .ip-box {
+    display: flex;
+    align-items: center;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .ip-box:focus-within {
+    border-color: var(--coral);
+    box-shadow: 0 0 0 3px var(--coral-soft);
+  }
+  .ip-box input {
+    border: none;
+    outline: none;
+    padding: 10px 8px 10px 14px;
+    font-size: 14px;
+    width: 150px;
+    background: transparent;
+    color: var(--ink);
+    font-family: "SFMono-Regular", Consolas, monospace;
+  }
+  .ip-box .arrow {
+    padding: 0 4px;
+    color: var(--ink-faint);
+    font-size: 14px;
+  }
   button {
     background: var(--coral);
     color: #fff;
@@ -220,6 +248,15 @@
       </div>
     </div>
     <div class="controls">
+      <div class="ip-box">
+        <input id="clientIp" name="clientIp" value="10.10.10.1"
+               placeholder="client IP" autocomplete="off" spellcheck="false"
+               title="Client (source) IP address">
+        <span class="arrow">→</span>
+        <input id="serverIp" name="serverIp" value="10.10.10.2"
+               placeholder="server IP" autocomplete="off" spellcheck="false"
+               title="Server (destination) IP address">
+      </div>
       <div class="filename-box">
         <input id="filename" name="filename" value="raw2pcap-result"
                placeholder="filename" autocomplete="off">
