@@ -17,6 +17,7 @@ app = FastAPI(title="raw2pcap")
 
 _STATIC = Path(__file__).parent / "static"
 _INDEX_HTML = (_STATIC / "index.html").read_text(encoding="utf-8")
+_APP_JS = (_STATIC / "app.js").read_bytes()
 
 _ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
 
@@ -31,6 +32,11 @@ def _sanitize_filename(raw: str) -> str:
     """
     name = _ILLEGAL_FILENAME_CHARS.sub("", raw.strip()) or "raw2pcap-result"
     return name if name.lower().endswith(".pcap") else name + ".pcap"
+
+
+def _utf8_bytes(*fields: str) -> int:
+    """Sum the UTF-8 byte length of form fields (matches middleware accounting)."""
+    return sum(len(f.encode("utf-8")) for f in fields)
 
 
 @app.middleware("http")
@@ -57,7 +63,7 @@ def index() -> str:
 @app.get("/static/app.js")
 def app_js() -> Response:
     return Response(
-        (_STATIC / "app.js").read_bytes(),
+        _APP_JS,
         media_type="text/javascript",
         headers={"Cache-Control": "no-cache"},
     )
@@ -69,7 +75,7 @@ def create_pcap(
     inputResponse: str = Form(default=""),
     filename: str = Form(default=""),
 ) -> Response:
-    if len(inputRequest) + len(inputResponse) > MAX_BODY_BYTES:
+    if _utf8_bytes(inputRequest, inputResponse) > MAX_BODY_BYTES:
         raise HTTPException(
             status_code=413,
             detail=[f"request body too large (max {MAX_BODY_BYTES} bytes)"],

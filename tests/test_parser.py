@@ -62,3 +62,12 @@ def test_parse_request_rejects_garbage(text):
 def test_parse_response_rejects_bad_status():
     with pytest.raises(ParseError):
         parse_response("HTTP/1.1 abc Bad\r\n\r\n")
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["example.com:0", "example.com:99999", "example.com:abc", "example.com:"],
+)
+def test_parse_request_rejects_bad_host_port(host):
+    with pytest.raises(ParseError):
+        parse_request(f"GET / HTTP/1.1\r\nHost: {host}\r\n\r\n").host_port()

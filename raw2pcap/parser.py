@@ -14,7 +14,7 @@ class ParseError(ValueError):
     """Raised when raw HTTP text cannot be parsed."""
 
 
-def _split_head_body(text: str) -> tuple[str, bytes]:
+def split_head_body(text: str) -> tuple[str, bytes]:
     """Split raw text into the head (start line + headers) and raw body bytes."""
     if HEADER_SEP in text:
         head, body = text.split(HEADER_SEP, 1)
@@ -80,9 +80,12 @@ class HttpRequest(HttpMessage):
         host = self.header("host") or ""
         if ":" in host:
             try:
-                return int(host.rsplit(":", 1)[1])
+                port = int(host.rsplit(":", 1)[1])
             except ValueError as exc:
                 raise ParseError(f"invalid port in Host header: {host!r}") from exc
+            if not 1 <= port <= 65535:
+                raise ParseError(f"invalid port in Host header: {host!r}")
+            return port
         return default_port
 
     def to_bytes(self) -> bytes:
@@ -106,7 +109,7 @@ def parse_request(text: str) -> HttpRequest:
     """Parse raw HTTP request text."""
     if not text or not text.strip():
         raise ParseError("empty request")
-    head, body = _split_head_body(text)
+    head, body = split_head_body(text)
     start_line, headers = _parse_head(head)
     parts = start_line.split(" ", 2)
     if len(parts) != 3 or not parts[2].startswith("HTTP/"):
@@ -120,7 +123,7 @@ def parse_response(text: str) -> HttpResponse:
     """Parse raw HTTP response text."""
     if not text or not text.strip():
         raise ParseError("empty response")
-    head, body = _split_head_body(text)
+    head, body = split_head_body(text)
     start_line, headers = _parse_head(head)
     parts = start_line.split(" ", 2)
     if len(parts) < 2 or not parts[0].startswith("HTTP/"):

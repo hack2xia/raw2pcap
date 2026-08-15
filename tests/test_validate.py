@@ -82,3 +82,59 @@ def test_body_whitespace_lines_not_flagged():
     text = "POST / HTTP/1.1\r\nHost: example.com\r\n\r\nline1\r\n \r\nline2"
     errors = messages(validate_request(text), "error")
     assert not any("blank line" in m for m in errors)
+
+
+def test_host_port_out_of_range_is_error():
+    text = "GET / HTTP/1.1\r\nHost: example.com:99999\r\n\r\n"
+    errors = messages(validate_request(text), "error")
+    assert any("out of range" in m for m in errors)
+
+
+def test_host_port_zero_is_error():
+    text = "GET / HTTP/1.1\r\nHost: example.com:0\r\n\r\n"
+    errors = messages(validate_request(text), "error")
+    assert any("out of range" in m for m in errors)
+
+
+def test_host_port_not_a_number_is_error():
+    text = "GET / HTTP/1.1\r\nHost: example.com:abc\r\n\r\n"
+    errors = messages(validate_request(text), "error")
+    assert any("not a number" in m for m in errors)
+
+
+def test_host_port_empty_is_error():
+    text = "GET / HTTP/1.1\r\nHost: example.com:\r\n\r\n"
+    errors = messages(validate_request(text), "error")
+    assert any("empty port" in m for m in errors)
+
+
+def test_host_valid_port_has_no_issues():
+    issues = validate_request("GET / HTTP/1.1\r\nHost: example.com:8080\r\n\r\n")
+    assert issues == []
+
+
+def test_conflicting_content_lengths_error_even_when_last_matches_body():
+    # CL: 5 / CL: 0 with an empty body: the last header alone would pass, but
+    # the ambiguity itself is a request-smuggling signal and must be rejected.
+    text = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 0\r\n\r\n"
+    errors = messages(validate_response(text), "error")
+    assert any("multiple Content-Length" in m for m in errors)
+
+
+def test_duplicate_identical_content_length_is_error():
+    text = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\nhello"
+    errors = messages(validate_response(text), "error")
+    assert any("multiple Content-Length" in m for m in errors)
+
+
+def test_duplicate_content_length_request_is_error():
+    text = (
+        "POST / HTTP/1.1\r\n"
+        "Host: example.com\r\n"
+        "Content-Length: 3\r\n"
+        "Content-Length: 3\r\n"
+        "\r\n"
+        "abc"
+    )
+    errors = messages(validate_request(text), "error")
+    assert any("multiple Content-Length" in m for m in errors)

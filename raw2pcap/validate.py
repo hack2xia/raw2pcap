@@ -9,7 +9,7 @@ can show them.
 import re
 from dataclasses import dataclass
 
-from raw2pcap.parser import HEADER_SEP, _split_head_body
+from raw2pcap.parser import HEADER_SEP, split_head_body
 
 _TOKEN_RE = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
 _BLANK_WITH_WS_RE = re.compile(r"(?:\r\n|\n)[ \t]+(?:\r\n|\n)")
@@ -39,7 +39,7 @@ def _check_head(text: str, kind: str) -> tuple[list[Issue], list[str], bytes]:
             )
         )
 
-    head, body = _split_head_body(text)
+    head, body = split_head_body(text)
     lines = head.replace("\r\n", "\n").split("\n")
     for line in lines[1:]:
         if not line.strip():
@@ -77,7 +77,15 @@ def _check_body_framing(
                 "paste the decoded body with a Content-Length header instead",
             )
         )
-    if lengths:
+    if len(lengths) > 1:
+        issues.append(
+            Issue(
+                "error",
+                f"{kind}: multiple Content-Length headers ({len(lengths)}) are not "
+                "allowed - ambiguous request framing is a request-smuggling signal",
+            )
+        )
+    elif lengths:
         try:
             declared = int(lengths[-1])
         except ValueError:
@@ -103,6 +111,48 @@ def _headers_of(lines: list[str]) -> list[tuple[str, str]]:
     return headers
 
 
+def _check_host_port(
+    issues: list[Issue], headers: list[tuple[str, str]], kind: str
+) -> None:
+    """Reject Host headers whose port is missing, non-numeric, or out of range.
+
+    The parser turns the Host port into the TCP destination port; an invalid
+    value would otherwise surface as an opaque Scapy struct.error at build
+    time instead of a clear validation message here.
+    """
+    for name, value in headers:
+        if name.lower() != "host":
+            continue
+        if value.startswith("["):
+            # IPv6 literal: "[::1]" or "[::1]:8080". Sessions are IPv4-only,
+            # but an explicit port is still validated when present.
+            match = re.match(r"^\[[^\]]+\](?::(\d*))?$", value)
+            if not match:
+                issues.append(Issue("error", f"{kind}: malformed Host header: {value!r}"))
+                continue
+            port = match.group(1)
+            if port is None:
+                continue
+        elif ":" not in value:
+            continue
+        else:
+            port = value.rsplit(":", 1)[1]
+        if port == "":
+            issues.append(Issue("error", f"{kind}: Host header has an empty port: {value!r}"))
+            continue
+        if not port.isdigit():
+            issues.append(Issue("error", f"{kind}: Host port is not a number: {value!r}"))
+            continue
+        port_num = int(port)
+        if not 1 <= port_num <= 65535:
+            issues.append(
+                Issue(
+                    "error",
+                    f"{kind}: Host port {port_num} is out of range (must be 1-65535)",
+                )
+            )
+
+
 def validate_request(text: str) -> list[Issue]:
     """Validate raw HTTP request text before pcap generation."""
     issues, lines, body = _check_head(text, "request")
@@ -110,6 +160,7 @@ def validate_request(text: str) -> list[Issue]:
     version = lines[0].strip().split(" ")[-1] if lines else ""
     if version == "HTTP/1.1" and not any(k.lower() == "host" for k, _ in headers):
         issues.append(Issue("error", "request: HTTP/1.1 request is missing the Host header"))
+    _check_host_port(issues, headers, "request")
     _check_body_framing(issues, headers, body, "request")
     return issues
 

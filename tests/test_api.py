@@ -114,3 +114,42 @@ def test_oversized_chunked_body_rejected():
         },
     )
     assert resp.status_code == 413
+
+
+def test_host_port_out_of_range_returns_clean_400():
+    bad = "GET / HTTP/1.1\r\nHost: example.com:99999\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": bad, "inputResponse": ""})
+    assert resp.status_code == 400
+    detail = " ".join(resp.json()["detail"])
+    assert "port" in detail.lower()
+    assert "scapy" not in detail.lower()
+
+
+def test_duplicate_content_length_rejected():
+    bad = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nContent-Length: 0\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": REQUEST, "inputResponse": bad})
+    assert resp.status_code == 400
+    assert any("multiple Content-Length" in m for m in resp.json()["detail"])
+
+
+def test_size_check_counts_bytes_not_characters():
+    from raw2pcap import api
+
+    # "é" is 2 bytes in UTF-8: 5 characters but 10 bytes.
+    assert api._utf8_bytes("é" * 5) == 10
+
+
+def test_oversized_multibyte_body_rejected():
+    # 90k CJK characters are only 90k "characters" but 270 KB of UTF-8 bytes,
+    # above the 256 KiB limit. Sent chunked so only the endpoint-level byte
+    # check can catch it.
+    big = "汉" * (90 * 1024)
+    resp = client.post(
+        "/api/pcap",
+        content=f"inputRequest={big}",
+        headers={
+            "content-type": "application/x-www-form-urlencoded",
+            "transfer-encoding": "chunked",
+        },
+    )
+    assert resp.status_code == 413
