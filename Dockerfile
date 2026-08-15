@@ -6,7 +6,8 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder
 WORKDIR /app
 
 # Copy dependency manifests first for better layer caching.
-COPY pyproject.toml uv.lock .python-version ./
+# README.md and LICENSE are needed by hatchling to build the project itself.
+COPY pyproject.toml uv.lock .python-version README.md LICENSE ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-install-project --no-dev
 
