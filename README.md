@@ -113,9 +113,9 @@ uv run ruff check .        # lint
 Docker:
 
 ```bash
-docker build -t raw2pcap:test .
+docker build -t raw2pcap:latest .
 docker run -d -p 5000:5000 --memory 512m --cpus 1 --pids-limit 100 \
-  --restart unless-stopped raw2pcap:test
+  --restart unless-stopped raw2pcap:latest
 ```
 
 ## License

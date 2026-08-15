@@ -21,7 +21,7 @@ classifiers = [
     "Topic :: System :: Networking :: Monitoring",
 ]
 dependencies = [
-    "scapy>=2.5",
+    "scapy>=2.7,<3",
     "fastapi>=0.100",
     "uvicorn>=0.23",
     "python-multipart>=0.0.9",
