@@ -13,8 +13,8 @@ from scapy.layers.l2 import Ether
 from scapy.packet import Raw
 from scapy.utils import PcapWriter
 
-DEFAULT_CLIENT_IP = "10.10.10.1"
-DEFAULT_SERVER_IP = "10.10.10.2"
+DEFAULT_CLIENT_IP = "10.0.0.1"
+DEFAULT_SERVER_IP = "10.0.0.2"
 DEFAULT_MSS = 1460
 
 _CLIENT_MAC = "02:00:00:00:00:01"

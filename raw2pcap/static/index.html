@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>raw2pcap</title>
+<link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 <style>
   :root {
     --cream: #f5f4ee;
@@ -249,13 +250,13 @@
     </div>
     <div class="controls">
       <div class="ip-box">
-        <input id="clientIp" name="clientIp" value="10.10.10.1"
+        <input id="clientIp" name="clientIp" value="10.0.0.1"
                placeholder="client IP" autocomplete="off" spellcheck="false"
                title="Client (source) IP address">
         <span class="arrow">→</span>
-        <input id="serverIp" name="serverIp"
-               placeholder="server IP (auto)" autocomplete="off" spellcheck="false"
-               title="Server (destination) IP address; leave empty to use the Host header's IP">
+        <input id="serverIp" name="serverIp" value="10.0.0.2"
+               placeholder="server IP" autocomplete="off" spellcheck="false"
+               title="Server (destination) IP address; auto-filled from a literal IPv4 in the Host header">
       </div>
       <div class="filename-box">
         <input id="filename" name="filename" value="raw2pcap-result"

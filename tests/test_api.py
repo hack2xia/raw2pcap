@@ -19,6 +19,13 @@ def test_index_serves_form():
     assert "inputResponse" in resp.text
 
 
+def test_favicon_served():
+    resp = client.get("/static/favicon.svg")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("image/svg+xml")
+    assert b"r2p" in resp.content
+
+
 def test_create_pcap_from_request_and_response():
     resp = client.post(
         "/api/pcap",
@@ -166,13 +173,13 @@ def test_custom_ips_used_in_pcap():
             "inputRequest": REQUEST,
             "inputResponse": "",
             "clientIp": "127.0.0.2",
-            "serverIp": "10.0.0.2",
+            "serverIp": "192.168.1.10",
         },
     )
     assert resp.status_code == 200
     pkts = rdpcap(BytesIO(resp.content))
     assert pkts[0][IP].src == "127.0.0.2"
-    assert pkts[0][IP].dst == "10.0.0.2"
+    assert pkts[0][IP].dst == "192.168.1.10"
 
 
 def test_empty_ip_fields_use_defaults():
@@ -187,8 +194,8 @@ def test_empty_ip_fields_use_defaults():
     )
     assert resp.status_code == 200
     pkts = rdpcap(BytesIO(resp.content))
-    assert pkts[0][IP].src == "10.10.10.1"
-    assert pkts[0][IP].dst == "10.10.10.2"
+    assert pkts[0][IP].src == "10.0.0.1"
+    assert pkts[0][IP].dst == "10.0.0.2"
 
 
 def test_invalid_client_ip_rejected():
@@ -205,8 +212,16 @@ def test_server_ip_derived_from_host():
     resp = client.post("/api/pcap", data={"inputRequest": raw, "inputResponse": ""})
     assert resp.status_code == 200
     pkts = rdpcap(BytesIO(resp.content))
-    assert pkts[0][IP].src == "10.10.10.1"
+    assert pkts[0][IP].src == "10.0.0.1"
     assert pkts[0][IP].dst == "36.4.1.8"
+
+
+def test_host_127_0_0_1_keeps_default_dst():
+    raw = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": raw, "inputResponse": ""})
+    assert resp.status_code == 200
+    pkts = rdpcap(BytesIO(resp.content))
+    assert pkts[0][IP].dst == "10.0.0.2"
 
 
 def test_create_pcap_with_file_uploads():

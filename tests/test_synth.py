@@ -28,9 +28,9 @@ def test_handshake_flags_and_direction():
     pkts = _read(build_session(REQUEST, RESPONSE, base_time=1_700_000_000.0))
     syn, synack, ack = pkts[0], pkts[1], pkts[2]
     assert syn[TCP].flags == "S"
-    assert syn[IP].src == "10.10.10.1" and syn[IP].dst == "10.10.10.2"
+    assert syn[IP].src == "10.0.0.1" and syn[IP].dst == "10.0.0.2"
     assert synack[TCP].flags == "SA"
-    assert synack[IP].src == "10.10.10.2"
+    assert synack[IP].src == "10.0.0.2"
     assert synack[TCP].ack == syn[TCP].seq + 1
     assert ack[TCP].flags == "A"
     assert ack[TCP].seq == syn[TCP].seq + 1
@@ -61,7 +61,7 @@ def test_large_body_is_segmented_by_mss():
     pcap = build_session(REQUEST, RESPONSE + body, mss=1000, base_time=1_700_000_000.0)
     pkts = _read(pcap)
     resp_segments = [
-        bytes(p[Raw].load) for p in pkts if p.haslayer(Raw) and p[IP].src == "10.10.10.2"
+        bytes(p[Raw].load) for p in pkts if p.haslayer(Raw) and p[IP].src == "10.0.0.2"
     ]
     assert b"".join(resp_segments) == RESPONSE + body
     assert max(len(s) for s in resp_segments) <= 1000
@@ -101,13 +101,13 @@ def test_generate_pcap_response_only_uses_dummy_request():
 def test_generate_pcap_uses_host_header_port():
     raw_request = "GET / HTTP/1.1\r\nHost: example.com:8080\r\n\r\n"
     pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
-    assert all(p[TCP].dport == 8080 for p in pkts if p[IP].src == "10.10.10.1")
+    assert all(p[TCP].dport == 8080 for p in pkts if p[IP].src == "10.0.0.1")
 
 
 def test_generate_pcap_uses_host_header_ipv4_as_dst():
     raw_request = "GET / HTTP/1.1\r\nHost: 36.4.1.8:7001\r\n\r\n"
     pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
-    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
+    client_pkts = [p for p in pkts if p[IP].src == "10.0.0.1"]
     assert all(p[IP].dst == "36.4.1.8" for p in client_pkts)
     assert all(p[TCP].dport == 7001 for p in client_pkts)
 
@@ -115,8 +115,22 @@ def test_generate_pcap_uses_host_header_ipv4_as_dst():
 def test_generate_pcap_hostname_keeps_default_dst():
     raw_request = "GET / HTTP/1.1\r\nHost: example.com:8080\r\n\r\n"
     pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
-    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
-    assert all(p[IP].dst == "10.10.10.2" for p in client_pkts)
+    client_pkts = [p for p in pkts if p[IP].src == "10.0.0.1"]
+    assert all(p[IP].dst == "10.0.0.2" for p in client_pkts)
+
+
+def test_generate_pcap_host_127_0_0_1_keeps_default_dst():
+    raw_request = "GET / HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n"
+    pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
+    client_pkts = [p for p in pkts if p[IP].src == "10.0.0.1"]
+    assert all(p[IP].dst == "10.0.0.2" for p in client_pkts)
+
+
+def test_generate_pcap_host_other_loopback_still_derives():
+    raw_request = "GET / HTTP/1.1\r\nHost: 127.0.0.2\r\n\r\n"
+    pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
+    client_pkts = [p for p in pkts if p[IP].src == "10.0.0.1"]
+    assert all(p[IP].dst == "127.0.0.2" for p in client_pkts)
 
 
 def test_generate_pcap_explicit_server_ip_wins():
@@ -128,5 +142,5 @@ def test_generate_pcap_explicit_server_ip_wins():
             base_time=1_700_000_000.0,
         )
     )
-    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
+    client_pkts = [p for p in pkts if p[IP].src == "10.0.0.1"]
     assert all(p[IP].dst == "192.168.1.5" for p in client_pkts)

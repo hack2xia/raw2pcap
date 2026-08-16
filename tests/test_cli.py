@@ -42,13 +42,13 @@ def test_generate_with_custom_ips(tmp_path):
             "--client-ip",
             "127.0.0.2",
             "--server-ip",
-            "10.0.0.2",
+            "192.168.1.10",
         ]
     )
     assert rc == 0
     pkts = rdpcap(BytesIO(out.read_bytes()))
     assert pkts[0][IP].src == "127.0.0.2"
-    assert pkts[0][IP].dst == "10.0.0.2"
+    assert pkts[0][IP].dst == "192.168.1.10"
 
 
 def test_generate_rejects_invalid_ip(tmp_path):

@@ -28,9 +28,15 @@ def _host_ipv4(request: HttpRequest) -> str | None:
     if not host or host.startswith("["):
         return None
     try:
-        return normalize_ipv4(host, "server IP")
+        addr = normalize_ipv4(host, "server IP")
     except IpValidationError:
         return None
+    # Special case: Host: 127.0.0.1 does not imply the destination is the
+    # local loopback - real captures often show a proxy or port-forwarding
+    # endpoint instead, so keep the default (or explicit) server IP.
+    if addr == "127.0.0.1":
+        return None
+    return addr
 
 
 def generate_pcap(

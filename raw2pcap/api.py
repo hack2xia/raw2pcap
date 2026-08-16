@@ -25,6 +25,7 @@ app = FastAPI(title="raw2pcap")
 _STATIC = Path(__file__).parent / "static"
 _INDEX_HTML = (_STATIC / "index.html").read_text(encoding="utf-8")
 _APP_JS = (_STATIC / "app.js").read_bytes()
+_FAVICON_SVG = (_STATIC / "favicon.svg").read_bytes()
 
 _ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
 
@@ -95,6 +96,15 @@ def app_js() -> Response:
         _APP_JS,
         media_type="text/javascript",
         headers={"Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/static/favicon.svg")
+def favicon_svg() -> Response:
+    return Response(
+        _FAVICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 
