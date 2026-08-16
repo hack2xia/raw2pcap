@@ -102,3 +102,31 @@ def test_generate_pcap_uses_host_header_port():
     raw_request = "GET / HTTP/1.1\r\nHost: example.com:8080\r\n\r\n"
     pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
     assert all(p[TCP].dport == 8080 for p in pkts if p[IP].src == "10.10.10.1")
+
+
+def test_generate_pcap_uses_host_header_ipv4_as_dst():
+    raw_request = "GET / HTTP/1.1\r\nHost: 36.4.1.8:7001\r\n\r\n"
+    pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
+    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
+    assert all(p[IP].dst == "36.4.1.8" for p in client_pkts)
+    assert all(p[TCP].dport == 7001 for p in client_pkts)
+
+
+def test_generate_pcap_hostname_keeps_default_dst():
+    raw_request = "GET / HTTP/1.1\r\nHost: example.com:8080\r\n\r\n"
+    pkts = _read(generate_pcap(raw_request=raw_request, base_time=1_700_000_000.0))
+    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
+    assert all(p[IP].dst == "10.10.10.2" for p in client_pkts)
+
+
+def test_generate_pcap_explicit_server_ip_wins():
+    raw_request = "GET / HTTP/1.1\r\nHost: 36.4.1.8:7001\r\n\r\n"
+    pkts = _read(
+        generate_pcap(
+            raw_request=raw_request,
+            server_ip="192.168.1.5",
+            base_time=1_700_000_000.0,
+        )
+    )
+    client_pkts = [p for p in pkts if p[IP].src == "10.10.10.1"]
+    assert all(p[IP].dst == "192.168.1.5" for p in client_pkts)

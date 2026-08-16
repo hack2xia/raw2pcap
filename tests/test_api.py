@@ -200,6 +200,15 @@ def test_invalid_client_ip_rejected():
     assert any("IPv4" in m for m in resp.json()["detail"])
 
 
+def test_server_ip_derived_from_host():
+    raw = "GET / HTTP/1.1\r\nHost: 36.4.1.8:7001\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": raw, "inputResponse": ""})
+    assert resp.status_code == 200
+    pkts = rdpcap(BytesIO(resp.content))
+    assert pkts[0][IP].src == "10.10.10.1"
+    assert pkts[0][IP].dst == "36.4.1.8"
+
+
 def test_create_pcap_with_file_uploads():
     resp = client.post(
         "/api/pcap",

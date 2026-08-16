@@ -88,6 +88,14 @@ class HttpRequest(HttpMessage):
             return port
         return default_port
 
+    def host_name(self) -> str:
+        """Return the host part of the Host header (without port), if any."""
+        host = self.header("host") or ""
+        if host.startswith("["):
+            # IPv6 literal: "[::1]:8080" -> "[::1]"
+            return host[: host.find("]") + 1] if "]" in host else host
+        return host.rsplit(":", 1)[0] if ":" in host else host
+
     def to_bytes(self) -> bytes:
         start_line = f"{self.method} {self.path} {self.version}"
         return self.head_bytes(start_line) + self.body

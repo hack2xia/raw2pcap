@@ -58,6 +58,21 @@ def test_generate_rejects_invalid_ip(tmp_path):
         main_with(["generate", str(req), "--client-ip", "not-an-ip"])
 
 
+def test_generate_server_ip_derived_from_host(tmp_path):
+    from io import BytesIO
+
+    from scapy.layers.inet import IP
+    from scapy.utils import rdpcap
+
+    req = tmp_path / "req.txt"
+    out = tmp_path / "out.pcap"
+    req.write_text("GET / HTTP/1.1\r\nHost: 36.4.1.8:7001\r\n\r\n", encoding="utf-8")
+    rc = main_with(["generate", str(req), "-o", str(out)])
+    assert rc == 0
+    pkts = rdpcap(BytesIO(out.read_bytes()))
+    assert pkts[0][IP].dst == "36.4.1.8"
+
+
 def main_with(argv):
     import sys
     from unittest import mock

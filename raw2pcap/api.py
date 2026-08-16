@@ -12,7 +12,7 @@ from raw2pcap.config import MAX_BODY_BYTES
 from raw2pcap.generate import generate_pcap
 from raw2pcap.parser import ParseError
 from raw2pcap.selfcheck import SelfCheckError
-from raw2pcap.synth import DEFAULT_CLIENT_IP, DEFAULT_SERVER_IP
+from raw2pcap.synth import DEFAULT_CLIENT_IP
 from raw2pcap.validate import (
     IpValidationError,
     normalize_ipv4,
@@ -46,7 +46,7 @@ def _utf8_bytes(*fields: str) -> int:
     return sum(len(f.encode("utf-8")) for f in fields)
 
 
-def _resolve_ip(value: str, default: str, label: str) -> str:
+def _resolve_ip(value: str, default: str | None, label: str) -> str | None:
     """Return *value* as a validated IPv4 address, or *default* when blank."""
     if not value.strip():
         return default
@@ -128,7 +128,7 @@ def create_pcap(
             raw_request=input_request,
             raw_response=input_response,
             client_ip=_resolve_ip(clientIp, DEFAULT_CLIENT_IP, "client IP"),
-            server_ip=_resolve_ip(serverIp, DEFAULT_SERVER_IP, "server IP"),
+            server_ip=_resolve_ip(serverIp, None, "server IP"),
         )
     except (ValueError, ParseError) as exc:
         raise HTTPException(status_code=400, detail=[str(exc)]) from exc

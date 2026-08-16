@@ -48,8 +48,9 @@ def build_parser() -> argparse.ArgumentParser:
     gen.add_argument(
         "--server-ip",
         type=_ipv4_type("server IP"),
-        default=DEFAULT_SERVER_IP,
-        help=f"server (destination) IPv4 address [default {DEFAULT_SERVER_IP}]",
+        default=None,
+        help="server (destination) IPv4 address [default: literal IPv4 from "
+        f"the Host header, else {DEFAULT_SERVER_IP}]",
     )
 
     serve = subparsers.add_parser("serve", help="run the web UI")

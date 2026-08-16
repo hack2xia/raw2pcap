@@ -29,6 +29,18 @@ def test_parse_request_host_port():
     assert parse_request(no_port).host_port() == 80
 
 
+def test_parse_request_host_name():
+    cases = {
+        "example.com:8080": "example.com",
+        "36.4.1.8:7001": "36.4.1.8",
+        "[::1]:8080": "[::1]",
+        "example.com": "example.com",
+    }
+    for host, expected in cases.items():
+        raw = f"GET / HTTP/1.1\r\nHost: {host}\r\n\r\n"
+        assert parse_request(raw).host_name() == expected
+
+
 def test_request_roundtrip_bytes():
     req = parse_request(REQUEST)
     assert req.to_bytes() == REQUEST.encode("utf-8")
