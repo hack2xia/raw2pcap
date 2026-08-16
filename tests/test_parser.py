@@ -83,3 +83,19 @@ def test_parse_response_rejects_bad_status():
 def test_parse_request_rejects_bad_host_port(host):
     with pytest.raises(ParseError):
         parse_request(f"GET / HTTP/1.1\r\nHost: {host}\r\n\r\n").host_port()
+
+
+def test_parse_request_host_port_bracketed_ipv6():
+    assert parse_request("GET / HTTP/1.1\r\nHost: [::1]\r\n\r\n").host_port() == 80
+    assert parse_request("GET / HTTP/1.1\r\nHost: [::1]:8080\r\n\r\n").host_port() == 8080
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["::1", "[::1", "[::1]:", "fe80::1%eth0"],
+)
+def test_parse_request_rejects_malformed_ipv6_host(host):
+    # Bare IPv6 must not silently parse as (host, port); unclosed brackets
+    # and empty ports are rejected too.
+    with pytest.raises(ParseError):
+        parse_request(f"GET / HTTP/1.1\r\nHost: {host}\r\n\r\n").host_port()

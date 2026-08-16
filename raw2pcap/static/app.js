@@ -42,6 +42,10 @@ function showIssues(el, items, prefix) {
 
 function downloadName(resp) {
   const cd = resp.headers.get("Content-Disposition") || "";
+  // Non-ASCII names arrive percent-encoded in filename* (RFC 5987); prefer
+  // it so a Chinese filename downloads under its real name.
+  const star = cd.match(/filename\*=UTF-8''([^;]+)/);
+  if (star) return decodeURIComponent(star[1]);
   const m = cd.match(/filename="([^"]+)"/);
   return m ? m[1] : "raw2pcap-result.pcap";
 }

@@ -78,15 +78,32 @@ class HttpRequest(HttpMessage):
     def host_port(self, default_port: int = 80) -> int:
         """Return the server port taken from the Host header."""
         host = self.header("host") or ""
-        if ":" in host:
-            try:
-                port = int(host.rsplit(":", 1)[1])
-            except ValueError as exc:
-                raise ParseError(f"invalid port in Host header: {host!r}") from exc
-            if not 1 <= port <= 65535:
+        if host.startswith("["):
+            # Bracketed IPv6 literal: a port may only follow the "]".
+            if "]" not in host:
+                raise ParseError(f"malformed IPv6 Host header (missing ']'): {host!r}")
+            rest = host.split("]", 1)[1]
+            if not rest:
+                return default_port
+            if not rest.startswith(":") or len(rest) == 1:
                 raise ParseError(f"invalid port in Host header: {host!r}")
-            return port
-        return default_port
+            port_text = rest[1:]
+        elif host.count(":") > 1:
+            # RFC 7230/3986: IPv6 literals must be bracketed in a Host
+            # header. Bare ones would otherwise split on the last colon and
+            # silently synthesize traffic to a nonsense port.
+            raise ParseError(f"IPv6 literal in Host header must use brackets: {host!r}")
+        elif ":" in host:
+            port_text = host.rsplit(":", 1)[1]
+        else:
+            return default_port
+        try:
+            port = int(port_text)
+        except ValueError as exc:
+            raise ParseError(f"invalid port in Host header: {host!r}") from exc
+        if not 1 <= port <= 65535:
+            raise ParseError(f"invalid port in Host header: {host!r}")
+        return port
 
     def host_name(self) -> str:
         """Return the host part of the Host header (without port), if any."""

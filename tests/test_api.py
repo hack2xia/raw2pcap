@@ -1,7 +1,7 @@
 from io import BytesIO
 
 from fastapi.testclient import TestClient
-from scapy.layers.inet import IP
+from scapy.layers.inet import IP, TCP
 from scapy.utils import rdpcap
 
 from raw2pcap.api import app
@@ -68,6 +68,42 @@ def test_filename_default_when_blank():
         data={"inputRequest": REQUEST, "inputResponse": "", "filename": "  "},
     )
     assert resp.headers["content-disposition"] == 'attachment; filename="raw2pcap-result.pcap"'
+
+
+def test_filename_newline_stripped_from_header():
+    # A raw newline must never reach Content-Disposition: it could split the
+    # header or break stricter HTTP stacks that reject it outright.
+    resp = client.post(
+        "/api/pcap",
+        data={"inputRequest": REQUEST, "inputResponse": "", "filename": "evil\nX-Injected: 1"},
+    )
+    assert resp.status_code == 200
+    cd = resp.headers["content-disposition"]
+    assert "\n" not in cd and "\r" not in cd
+
+
+def test_filename_cjk_uses_rfc5987():
+    # Non-ASCII names cannot travel in a latin-1 header verbatim; they go
+    # percent-encoded in filename* with an ASCII fallback in filename=.
+    resp = client.post(
+        "/api/pcap",
+        data={"inputRequest": REQUEST, "inputResponse": "", "filename": "捕获文件"},
+    )
+    assert resp.status_code == 200
+    cd = resp.headers["content-disposition"]
+    assert 'attachment; filename="raw2pcap-result.pcap"' in cd
+    assert "filename*=UTF-8''%E6%8D%95%E8%8E%B7%E6%96%87%E4%BB%B6.pcap" in cd
+
+
+def test_filename_mixed_ascii_and_cjk_keeps_ascii_fallback():
+    resp = client.post(
+        "/api/pcap",
+        data={"inputRequest": REQUEST, "inputResponse": "", "filename": "捕获demo"},
+    )
+    assert resp.status_code == 200
+    cd = resp.headers["content-disposition"]
+    assert 'attachment; filename="demo.pcap"' in cd
+    assert "filename*=UTF-8''%E6%8D%95%E8%8E%B7demo.pcap" in cd
 
 
 def test_create_pcap_request_only_gets_canned_response():
@@ -222,6 +258,25 @@ def test_host_127_0_0_1_keeps_default_dst():
     assert resp.status_code == 200
     pkts = rdpcap(BytesIO(resp.content))
     assert pkts[0][IP].dst == "10.0.0.2"
+
+
+def test_bare_ipv6_host_rejected():
+    # RFC 7230: IPv6 literals must be bracketed. Bare "::1" used to slip
+    # through and silently synthesize a session to destination port 1.
+    raw = "GET / HTTP/1.1\r\nHost: ::1\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": raw, "inputResponse": ""})
+    assert resp.status_code == 400
+    detail = " ".join(resp.json()["detail"])
+    assert "bracket" in detail.lower()
+
+
+def test_bracketed_ipv6_host_accepted():
+    raw = "GET / HTTP/1.1\r\nHost: [::1]:8080\r\n\r\n"
+    resp = client.post("/api/pcap", data={"inputRequest": raw, "inputResponse": ""})
+    assert resp.status_code == 200
+    pkts = rdpcap(BytesIO(resp.content))
+    assert pkts[0][IP].dst == "10.0.0.2"  # IPv6 hosts fall back to the default
+    assert pkts[0][TCP].dport == 8080  # port after "]" is honored
 
 
 def test_create_pcap_with_file_uploads():

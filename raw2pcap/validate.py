@@ -131,9 +131,7 @@ def _headers_of(lines: list[str]) -> list[tuple[str, str]]:
     return headers
 
 
-def _check_host_port(
-    issues: list[Issue], headers: list[tuple[str, str]], kind: str
-) -> None:
+def _check_host_port(issues: list[Issue], headers: list[tuple[str, str]], kind: str) -> None:
     """Reject Host headers whose port is missing, non-numeric, or out of range.
 
     The parser turns the Host port into the TCP destination port; an invalid
@@ -153,6 +151,17 @@ def _check_host_port(
             port = match.group(1)
             if port is None:
                 continue
+        elif value.count(":") > 1:
+            # RFC 7230/3986: IPv6 literals must be bracketed in a Host
+            # header. Bare ones would otherwise split on the last colon and
+            # silently synthesize traffic to a nonsense port.
+            issues.append(
+                Issue(
+                    "error",
+                    f"{kind}: IPv6 literal in Host header must use brackets: {value!r}",
+                )
+            )
+            continue
         elif ":" not in value:
             continue
         else:

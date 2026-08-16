@@ -120,6 +120,18 @@ def test_host_valid_port_has_no_issues():
     assert issues == []
 
 
+def test_bare_ipv6_host_is_error():
+    # A bare IPv6 literal would split on the last colon and look like port 1.
+    text = "GET / HTTP/1.1\r\nHost: ::1\r\n\r\n"
+    errors = messages(validate_request(text), "error")
+    assert any("bracket" in m for m in errors)
+
+
+def test_bracketed_ipv6_host_with_port_has_no_issues():
+    issues = validate_request("GET / HTTP/1.1\r\nHost: [::1]:8080\r\n\r\n")
+    assert issues == []
+
+
 def test_conflicting_content_lengths_error_even_when_last_matches_body():
     # CL: 5 / CL: 0 with an empty body: the last header alone would pass, but
     # the ambiguity itself is a request-smuggling signal and must be rejected.
@@ -136,12 +148,7 @@ def test_duplicate_identical_content_length_is_error():
 
 def test_duplicate_content_length_request_is_error():
     text = (
-        "POST / HTTP/1.1\r\n"
-        "Host: example.com\r\n"
-        "Content-Length: 3\r\n"
-        "Content-Length: 3\r\n"
-        "\r\n"
-        "abc"
+        "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 3\r\nContent-Length: 3\r\n\r\nabc"
     )
     errors = messages(validate_request(text), "error")
     assert any("multiple Content-Length" in m for m in errors)

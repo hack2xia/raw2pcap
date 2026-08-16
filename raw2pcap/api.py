@@ -4,6 +4,7 @@ import json
 import re
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -27,7 +28,9 @@ _INDEX_HTML = (_STATIC / "index.html").read_text(encoding="utf-8")
 _APP_JS = (_STATIC / "app.js").read_bytes()
 _FAVICON_SVG = (_STATIC / "favicon.svg").read_bytes()
 
-_ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+# Control characters (C0/C1) must never survive into a header value; the
+# punctuation set matches what common filesystems reject in filenames.
+_ILLEGAL_FILENAME_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f\\/:*?\"<>|]")
 
 
 def _sanitize_filename(raw: str) -> str:
@@ -35,11 +38,28 @@ def _sanitize_filename(raw: str) -> str:
 
     Sanitizing here (not in the browser) keeps all logic tested by pytest and
     guarantees a safe Content-Disposition header value: the stripped set
-    includes both quote and backslash, so the result cannot break out of the
-    quoted filename.
+    includes control characters, quote and backslash, so the result cannot
+    break out of the quoted filename or smuggle in extra header lines.
     """
     name = _ILLEGAL_FILENAME_CHARS.sub("", raw.strip()) or "raw2pcap-result"
     return name if name.lower().endswith(".pcap") else name + ".pcap"
+
+
+def _content_disposition(name: str) -> str:
+    """Build the Content-Disposition value for the sanitized *name*.
+
+    Header values travel as latin-1, so a non-ASCII name (e.g. Chinese)
+    cannot go in verbatim. Per RFC 6266/5987 it is percent-encoded in
+    filename*, while the quoted filename= carries an ASCII-only fallback
+    for clients that ignore filename*.
+    """
+    ascii_name = name.encode("ascii", "ignore").decode("ascii").strip()
+    stem = ascii_name[:-5] if ascii_name.lower().endswith(".pcap") else ascii_name
+    if not stem:
+        ascii_name = "raw2pcap-result.pcap"
+    if ascii_name == name:
+        return f'attachment; filename="{ascii_name}"'
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 def _utf8_bytes(*fields: str) -> int:
@@ -150,7 +170,7 @@ def create_pcap(
         content=pcap,
         media_type="application/vnd.tcpdump.pcap",
         headers={
-            "Content-Disposition": f'attachment; filename="{_sanitize_filename(filename)}"',
+            "Content-Disposition": _content_disposition(_sanitize_filename(filename)),
             "X-Raw2pcap-Warnings": json.dumps(warnings),
         },
     )
